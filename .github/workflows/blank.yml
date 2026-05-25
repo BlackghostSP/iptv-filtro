@@ -8,8 +8,11 @@ on:
 jobs:
   actualizar:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
       
       - name: Descargar y filtrar VOD y Series
         run: |
@@ -34,10 +37,10 @@ jobs:
           echo "Última actualización: $(date)" > info.txt
           echo "Total de películas y series: $COUNT" >> info.txt
       
-      - name: Guardar cambios
+      - name: Subir cambios
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git add peliculas_y_series.m3u info.txt
-          git commit -m "Actualización automática $(date '+%Y-%m-%d %H:%M:%S')" || echo "Sin cambios"
-          git push
+          git diff --staged --quiet || git commit -m "Actualización automática $(date '+%Y-%m-%d %H:%M:%S')"
+          git push || echo "No hay cambios que subir"
