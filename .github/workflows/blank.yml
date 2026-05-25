@@ -1,0 +1,43 @@
+name: Actualizar lista IPTV
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Descargar y filtrar VOD y Series
+        run: |
+          curl -s "https://user.nashajls.com:443/get.php?username=VanJanLu&password=635028586A&type=m3u_plus" -o original.m3u
+          
+          echo "#EXTM3U" > peliculas_y_series.m3u
+          
+          while IFS= read -r line; do
+            if [[ "$line" == \#EXTINF:* ]]; then
+              current_info="$line"
+            elif [[ "$line" == http* ]] && [[ -n "$current_info" ]]; then
+              if [[ "$current_info" =~ (VOD|PELICULA|MOVIE|SERIES|SERIE|SHOW|TEMPORADA|EPISODIO) ]]; then
+                echo "$current_info" >> peliculas_y_series.m3u
+                echo "$line" >> peliculas_y_series.m3u
+              fi
+              current_info=""
+            fi
+          done < original.m3u
+          
+          COUNT=$(grep -c "#EXTINF" peliculas_y_series.m3u)
+          echo "✅ Se filtraron $COUNT VODs y Series"
+          echo "Última actualización: $(date)" > info.txt
+          echo "Total de películas y series: $COUNT" >> info.txt
+      
+      - name: Guardar cambios
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add peliculas_y_series.m3u info.txt
+          git commit -m "Actualización automática $(date '+%Y-%m-%d %H:%M:%S')" || echo "Sin cambios"
+          git push
